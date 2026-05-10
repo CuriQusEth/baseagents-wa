@@ -4,7 +4,7 @@ import { signAuthenticatedRequest } from "@buildersgarden/siwa/erc8128";
 let currentReceipt: string | null = null;
 let currentSigner: any = null;
 
-export function setSiwaData(receipt: string, signer: any) {
+export function saveSiwaSession(receipt: string, signer: any) {
   currentReceipt = receipt;
   currentSigner = signer;
   if (typeof window !== "undefined") {

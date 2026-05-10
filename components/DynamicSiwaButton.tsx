@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { signSIWAMessage } from "@buildersgarden/siwa";
 import { createWalletClientSigner } from "@buildersgarden/siwa/signer";
 import { useAccount, useWalletClient } from 'wagmi';
-import { setSiwaData, sendAgentRequest } from '../lib/siwa';
+import { saveSiwaSession, sendAgentRequest } from '../lib/siwa';
 
 export default function DynamicSiwaButton() {
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +61,7 @@ export default function DynamicSiwaButton() {
       const data = await verifyRes.json();
 
       if (data.success && data.receipt) {
-        setSiwaData(data.receipt, signer);   // ← receipt kaydediliyor
+        saveSiwaSession(data.receipt, signer);   // ← receipt kaydediliyor
         setSuccess(true);
         console.log("✅ Gerçek Receipt alındı:", data.receipt);
       } else {
