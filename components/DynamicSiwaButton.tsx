@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { signSIWAMessage } from "@buildersgarden/siwa";
 import { createWalletClientSigner } from "@buildersgarden/siwa/signer";
 import { useAccount, useWalletClient } from 'wagmi';
-import { setSiwaData, sendAgentRequest } from '@/lib/siwa';
+import { setSiwaData, sendAgentRequest } from '../lib/siwa';
 
 export default function DynamicSiwaButton() {
   const [isLoading, setIsLoading] = useState(false);
@@ -52,15 +52,18 @@ export default function DynamicSiwaButton() {
       const verifyRes = await fetch("/api/siwa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: siwaMsg, signature }),
+        body: JSON.stringify({ 
+          message: siwaMsg, 
+          signature 
+        }),
       });
 
       const data = await verifyRes.json();
 
       if (data.success && data.receipt) {
-        setSiwaData(data.receipt, signer);
+        setSiwaData(data.receipt, signer);   // ← receipt kaydediliyor
         setSuccess(true);
-        console.log("✅ Receipt ve Signer kaydedildi");
+        console.log("✅ Gerçek Receipt alındı:", data.receipt);
       } else {
         throw new Error(data.error || "Verification failed");
       }
@@ -81,11 +84,17 @@ export default function DynamicSiwaButton() {
         
         <div className="flex flex-col gap-4">
           <button 
-            onClick={() => {
-              // Örnek istek
-              sendAgentRequest("https://api.example.com/protected", { action: "test" })
-                .then(data => alert(`Response: ${JSON.stringify(data)}`))
-                .catch(err => alert(`Error: ${err.message}`));
+            onClick={async () => {
+              try {
+                const result = await sendAgentRequest("https://httpbin.org/post", {
+                  test: "Base Agent SIWA Test",
+                  agentId: 47294
+                });
+                alert("İstek Başarılı! ✅");
+                console.log(result);
+              } catch (e: any) {
+                alert("Hata: " + e.message);
+              }
             }}
             className="bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"
           >
