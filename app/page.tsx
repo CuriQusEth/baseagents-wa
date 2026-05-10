@@ -1,71 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useAccount, useChainId, useWalletClient } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { signSIWAMessage } from "@buildersgarden/siwa/siwa";
-import { createWalletClientSigner } from "@/lib/siwa-wallet-signer";
 import { base } from "wagmi/chains";
-import { AGENT_REGISTRY_MAINNET, AGENT_REGISTRY_TESTNET } from "@/lib/wagmi";
-
-type Step = "idle" | "nonce" | "sign" | "verify" | "done" | "error";
-
-interface AuthResult {
-  success: boolean;
-  receipt: string;
-  expiresAt: string;
-  agent: { address: string; agentId: number; signerType?: string };
-}
+import DynamicSiwaButton from "@/components/DynamicSiwaButton";
 
 export default function SIWAPage() {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const chainId = useChainId();
-  const { data: walletClient } = useWalletClient();
-  const [agentId, setAgentId] = useState("");
-  const [step, setStep] = useState<Step>("idle");
-  const [statusMsg, setStatusMsg] = useState("");
-  const [result, setResult] = useState<AuthResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
 
   const isMainnet = chainId === base.id;
-  const agentRegistry = isMainnet ? AGENT_REGISTRY_MAINNET : AGENT_REGISTRY_TESTNET;
-
-  const handleSIWA = useCallback(async () => {
-    if (!address || !walletClient || !agentId) return;
-    setStep("nonce"); setStatusMsg("Requesting nonce from server..."); setResult(null); setErrorMsg("");
-    try {
-      const nonceRes = await fetch("/api/siwa/nonce", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, agentId: Number(agentId), agentRegistry, chainId }),
-      });
-      if (!nonceRes.ok) { const e = await nonceRes.json(); throw new Error(e.error || "Failed to get nonce"); }
-      const { nonce, issuedAt } = await nonceRes.json();
-
-      setStep("sign"); setStatusMsg("Signing SIWA message in your wallet...");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const signer = createWalletClientSigner(walletClient as any);
-      const { message, signature } = await signSIWAMessage({
-        domain: window.location.host,
-        uri: `${window.location.origin}/api/siwa/verify`,
-        agentId: Number(agentId), agentRegistry, chainId, nonce, issuedAt,
-        statement: "Sign in with my on-chain Agent to SIWA Hub",
-      }, signer);
-
-      setStep("verify"); setStatusMsg("Verifying signature on-chain...");
-      const verifyRes = await fetch("/api/siwa/verify", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, signature, chainId }),
-      });
-      if (!verifyRes.ok) { const e = await verifyRes.json(); throw new Error(e.error || "Verification failed"); }
-      const authResult: AuthResult = await verifyRes.json();
-      setResult(authResult); setStep("done"); setStatusMsg("Authentication successful!");
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Unknown error");
-      setStep("error"); setStatusMsg("");
-    }
-  }, [address, walletClient, agentId, agentRegistry, chainId]);
-
-  const reset = () => { setStep("idle"); setResult(null); setErrorMsg(""); setStatusMsg(""); };
 
   return (
     <main style={{ minHeight: "100vh", position: "relative", zIndex: 1, display: "flex", flexDirection: "column" }}>
@@ -113,9 +57,9 @@ export default function SIWAPage() {
               <ConnectButton label="Connect Wallet" />
             </div>
           ) : (
-             <div className="p-8">
+            <div className="p-8">
                <DynamicSiwaButton />
-             </div>
+            </div>
           )}
         </div>
 
