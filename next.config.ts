@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: "c5f59cfa3fe2f73752eaf98d9ba0dbe8",
+    RECEIPT_SECRET: "CAydUlxPpLymtJYIerIGNnvtzKJmCWMmZavfyzi/qp8="
+  },
   webpack(config) {
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -12,14 +16,6 @@ const nextConfig: NextConfig = {
       "@openfort/openfort-node": path.resolve(__dirname, "./lib/openfort-stub.js"),
     };
     return config;
-  },
-  experimental: {
-    turbopack: {
-      resolveAlias: {
-        "@circle-fin/developer-controlled-wallets": "./lib/circle-stub.js",
-        "@openfort/openfort-node": "./lib/openfort-stub.js",
-      },
-    },
   },
 };
 
