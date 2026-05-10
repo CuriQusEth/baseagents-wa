@@ -1,73 +1,67 @@
-import { NextRequest, NextResponse } from "next/server";
+// app/api/siwa/verify/route.ts
+import { NextRequest } from 'next/server';
 import { verifySIWA } from "@buildersgarden/siwa";
 import { createReceipt } from "@buildersgarden/siwa/receipt";
 import { createPublicClient, http } from "viem";
-import { base, baseSepolia } from "viem/chains";
-import { consumeNonce } from "@/lib/nonce-store";
+import { base } from "viem/chains";
+import { createMemorySIWANonceStore } from "@buildersgarden/siwa/nonce-store";
 
-const RECEIPT_SECRET = process.env.RECEIPT_SECRET ?? "siwa-dev-secret-change-in-production";
+const nonceStore = createMemorySIWANonceStore();
 
-export async function POST(req: NextRequest) {
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+});
+
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const { message, signature, chainId = 8453 } = body;
+    const { message, signature } = await request.json();
 
     if (!message || !signature) {
-      return NextResponse.json(
-        { error: "Missing required fields: message, signature" },
-        { status: 400 }
-      );
+      return Response.json({ error: "message ve signature zorunludur" }, { status: 400 });
     }
 
-    const chain = chainId === 84532 ? baseSepolia : base;
-    const rpcUrl = chainId === 84532
-      ? "https://sepolia.base.org"
-      : "https://mainnet.base.org";
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const client = createPublicClient({ chain, transport: http(rpcUrl) }) as any;
+    const domain = request.headers.get("host") || "baseagentt.vercel.app";
 
     const result = await verifySIWA(
       message,
       signature,
-      req.headers.get("host") ?? "localhost:3000",
-      (nonce: string) => consumeNonce(nonce),
-      client
+      domain,
+      { nonceStore },
+      publicClient
     );
 
     if (!result.valid) {
-      return NextResponse.json(
-        { error: "SIWA verification failed", code: result.code, details: result.error },
-        { status: 401 }
-      );
+      return Response.json({ 
+        error: result.error || "SIWA doğrulaması başarısız oldu" 
+      }, { status: 401 });
     }
 
-    // Issue HMAC receipt for ERC-8128 subsequent requests
-    const { receipt, expiresAt } = createReceipt(
-      {
-        address: result.address,
-        agentId: result.agentId,
-        agentRegistry: result.agentRegistry,
-        chainId: result.chainId,
-        verified: result.verified,
-        signerType: result.signerType,
-      },
-      { secret: RECEIPT_SECRET, ttl: 24 * 60 * 60 * 1000 } // 24h
-    );
+    // Receipt oluştur
+    const { receipt } = createReceipt({
+      address: result.address,
+      agentId: result.agentId,
+      agentRegistry: result.agentRegistry,
+      chainId: result.chainId,
+      verified: true,
+    }, {
+      secret: process.env.RECEIPT_SECRET!,
+    });
 
-    return NextResponse.json({
+    return Response.json({
       success: true,
       receipt,
-      expiresAt,
       agent: {
         address: result.address,
         agentId: result.agentId,
-        signerType: result.signerType ?? "eoa",
-      },
+        chainId: result.chainId,
+        signerType: result.signerType,
+      }
     });
-  } catch (error: unknown) {
-    console.error("[SIWA Verify Error]", error);
-    const message = error instanceof Error ? error.message : "Verification failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error: any) {
+    console.error("Verify Error:", error);
+    return Response.json({ 
+      error: error.message || "Doğrulama sırasında hata oluştu" 
+    }, { status: 500 });
   }
 }

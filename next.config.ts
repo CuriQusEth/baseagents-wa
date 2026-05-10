@@ -17,12 +17,6 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
-  turbopack: {
-    resolveAlias: {
-      "@circle-fin/developer-controlled-wallets": "./lib/circle-stub.js",
-      "@openfort/openfort-node": "./lib/openfort-stub.js",
-    },
-  },
 };
 
 export default nextConfig;
