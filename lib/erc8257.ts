@@ -13,7 +13,6 @@ export type ToolConfig = {
   metadata?: any;
 };
 
-// ✅ Resmi Reference Implementation Adresleri (Base Mainnet)
 export const TOOL_REGISTRY_ADDRESS = "0x7291BbFbC368C2D478eCe1eA30de31F612a34856" as `0x${string}`;
 
 const publicClient = createPublicClient({

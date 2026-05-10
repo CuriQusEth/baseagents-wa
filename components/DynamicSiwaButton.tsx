@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useSignMessage } from 'wagmi';
-import { signSIWAMessage } from "@buildersgarden/siwa";
+import { useAccount, useSignMessage, useWalletClient } from 'wagmi';
+import { signSIWAMessage } from "@buildersgarden/siwa/siwa";
 import { getAgentMetadata, type AgentMetadata } from '@/lib/agent-metadata';
 import { createWalletClient, custom } from 'viem';
 import { getAgentTools, getToolConfig, checkToolAccess, fetchToolMetadata, type ToolConfig } from '@/lib/erc8257';
 
 export default function DynamicSiwaButton() {
   const { address, connector } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { signMessageAsync } = useSignMessage();
 
   // Kullanıcı tarafından değiştirilebilir alanlar
@@ -75,9 +76,17 @@ export default function DynamicSiwaButton() {
       if (!nonceRes.ok) throw new Error("Nonce alınamadı");
       const { nonce, issuedAt } = await nonceRes.json();
 
+      let currentSig = "";
+      let finalMessage = "";
+
       // 2. SIWA Mesajı Oluştur
-      let generatedMessage = "";
+      // Eğer import edilen siwa'da doğrudan object döndürülüyorsa:
       try {
+          const fakeSigner = {
+              signMessage: async ({ message }: any) => { return ""; },
+              getAddress: async () => address,
+          };
+          
           const res = await signSIWAMessage({
             domain,
             uri,
@@ -86,33 +95,25 @@ export default function DynamicSiwaButton() {
             chainId: 8453,
             nonce,
             issuedAt,
-          });
-          generatedMessage = (res as any).message || res; // depending on the SDK export structure
+            statement: "Sign in with my on-chain Agent to SIWA Hub",
+          }, fakeSigner as any);
+          
+          finalMessage = res.message;
       } catch (err) {
-          generatedMessage = `${domain} wants you to sign in with your Agent account:\n${address}\n\nSign in with my on-chain Agent to SIWA Hub\n\nURI: ${uri}\nVersion: 1\nAgent ID: ${agentId}\nAgent Registry: eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432\nChain ID: 8453\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+          finalMessage = `${domain} wants you to sign in with your Agent account:\n${address}\n\nSign in with my on-chain Agent (${agentName}) to SIWA Hub\n\nURI: ${uri}\nVersion: 1\nAgent ID: ${agentId}\nAgent Registry: eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432\nChain ID: 8453\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
       }
-
-      const rawMsg = typeof generatedMessage === "string" ? generatedMessage : String(generatedMessage);
-
-      // Agent ismini mesajın içine ekle
-      const finalMessage = rawMsg.replace(
-        "Sign in with my on-chain Agent to SIWA Hub",
-        `Sign in with my on-chain Agent (${agentName}) to SIWA Hub`
-      );
-
-      let currentSig: string;
 
       // === SMART ACCOUNT DESTEĞİ ===
       if (connector?.getProvider) {
         try {
           const provider = await connector.getProvider();
-          const walletClient = createWalletClient({
+          const wClient = createWalletClient({
             chain: { id: 8453, name: 'Base', nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: ['https://mainnet.base.org'] } } },
             transport: custom(provider as any),
           });
 
-          const [account] = await walletClient.getAddresses();
-          currentSig = await walletClient.signMessage({
+          const [account] = await wClient.getAddresses();
+          currentSig = await wClient.signMessage({
             account,
             message: finalMessage,
           });
