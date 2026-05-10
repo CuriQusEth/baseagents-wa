@@ -71,33 +71,39 @@ export default function DynamicSiwaButton() {
   };
 
   if (success) {
-    return <div className="text-green-500 text-2xl text-center">✅ Agent Authenticated</div>;
+    return <div className="text-green-500 text-xl font-semibold text-center p-4 bg-green-500/10 rounded-xl border border-green-500/20">✅ Agent Authenticated</div>;
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <input
-        type="number"
-        value={agentId}
-        onChange={(e) => setAgentId(Number(e.target.value))}
-        className="w-full p-4 bg-zinc-900 rounded-xl text-white"
-        placeholder="Agent ID"
-      />
-      <input
-        type="text"
-        value={agentUri}
-        onChange={(e) => setAgentUri(e.target.value)}
-        className="w-full p-4 bg-zinc-900 rounded-xl text-white"
-        placeholder="https://myagent.com"
-      />
+    <div className="space-y-6 flex flex-col w-full">
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-zinc-400 pl-1">Agent ID</label>
+        <input
+          type="number"
+          value={agentId}
+          onChange={(e) => setAgentId(Number(e.target.value))}
+          className="w-full p-4 bg-zinc-900 border border-zinc-800 focus:border-blue-500 rounded-xl text-white outline-none transition-colors"
+          placeholder="Agent ID"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-zinc-400 pl-1">Agent URI</label>
+        <input
+          type="text"
+          value={agentUri}
+          onChange={(e) => setAgentUri(e.target.value)}
+          className="w-full p-4 bg-zinc-900 border border-zinc-800 focus:border-blue-500 rounded-xl text-white outline-none transition-colors"
+          placeholder="https://myagent.com"
+        />
+      </div>
       <button
         onClick={handleSignIn}
-        disabled={isLoading}
-        className="w-full py-4 bg-blue-600 rounded-xl font-semibold"
+        disabled={isLoading || !walletClient}
+        className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors rounded-xl font-semibold shadow-lg shadow-blue-500/20"
       >
         {isLoading ? "Signing..." : "Sign In with Agent"}
       </button>
-      {error && <p className="text-red-500">{error}</p>}
+      {error && <p className="text-red-400 text-center bg-red-500/10 p-3 rounded-lg border border-red-500/20">{error}</p>}
     </div>
   );
 }
