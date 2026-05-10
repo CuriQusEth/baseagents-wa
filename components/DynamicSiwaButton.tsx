@@ -7,45 +7,45 @@ import { useAccount, useWalletClient } from 'wagmi';
 
 export default function DynamicSiwaButton() {
   const [isLoading, setIsLoading] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
-  const [receipt, setReceipt] = useState<string>("");
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
 
-  // Kullanıcı girdileri
-  const [agentId, setAgentId] = useState<number>(47294);
-  const [uri, setUri] = useState<string>("https://myagent.example.com");
+  const [agentId, setAgentId] = useState(47294);
+  const [agentUri, setAgentUri] = useState("https://your-agent-domain.com");
 
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
 
   const handleSignIn = async () => {
     if (!walletClient || !address) {
-      alert("Lütfen cüzdanınızı bağlayın");
-      return;
-    }
-
-    if (!uri.startsWith("http")) {
-      alert("Geçerli bir URI girin (https:// ile başlamalı)");
+      setStatus("error");
+      setMessage("Cüzdan bağlı değil");
       return;
     }
 
     setIsLoading(true);
+    setStatus("idle");
 
     try {
-      const domain = new URL(uri).hostname;
+      const domain = new URL(agentUri).hostname;
 
+      // Nonce al
       const nonceRes = await fetch("/api/siwa/nonce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address: address }),
       });
+
+      if (!nonceRes.ok) throw new Error("Nonce alınamadı");
 
       const { nonce, issuedAt } = await nonceRes.json();
 
       const signer = createWalletClientSigner(walletClient);
 
-      const { message, signature } = await signSIWAMessage({
-        domain,
-        uri: uri,
+      // SIWA Sign
+      const { message: siwaMessage, signature } = await signSIWAMessage({
+        domain: domain,
+        uri: agentUri,
         agentId: agentId,
         agentRegistry: "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
         chainId: 8453,
@@ -53,76 +53,83 @@ export default function DynamicSiwaButton() {
         issuedAt,
       }, signer);
 
+      // Verify
       const verifyRes = await fetch("/api/siwa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, signature }),
+        body: JSON.stringify({ 
+          message: siwaMessage, 
+          signature 
+        }),
       });
 
       const data = await verifyRes.json();
 
       if (data.receipt) {
-        setReceipt(data.receipt);
-        setAuthenticated(true);
-        console.log("✅ Agent Authenticated", { agentId, uri, receipt: data.receipt });
-        alert(`Agent #${agentId} başarıyla doğrulandı!`);
+        setStatus("success");
+        setMessage(`Agent #${agentId} başarıyla doğrulandı!`);
+        console.log("Receipt:", data.receipt);
       } else {
-        alert("Authentication failed");
+        throw new Error(data.error || "Verification failed");
       }
-    } catch (error: any) {
-      console.error(error);
-      alert("Hata: " + (error.message || error));
+    } catch (err: any) {
+      console.error(err);
+      setStatus("error");
+      setMessage(err.message || "Authentication failed");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      {!authenticated ? (
+    <div className="max-w-md mx-auto space-y-6">
+      {status === "success" ? (
+        <div className="text-center p-8 bg-green-950 border border-green-500 rounded-2xl">
+          <div className="text-4xl mb-4">✅</div>
+          <h2 className="text-green-400 text-2xl mb-2">Agent Authenticated</h2>
+          <p>{message}</p>
+          <button 
+            onClick={() => setStatus("idle")}
+            className="mt-6 text-cyan-400 underline"
+          >
+            Tekrar Dene
+          </button>
+        </div>
+      ) : (
         <>
-          <div>
-            <label className="block text-sm mb-1">Agent ID</label>
-            <input
-              type="number"
-              value={agentId}
-              onChange={(e) => setAgentId(Number(e.target.value))}
-              className="w-full p-3 bg-zinc-900 border border-zinc-700 rounded-xl focus:outline-none focus:border-cyan-500"
-            />
-          </div>
+          <div className="space-y-4">
+            <div>
+              <label>Agent ID</label>
+              <input 
+                type="number" 
+                value={agentId}
+                onChange={(e) => setAgentId(Number(e.target.value))}
+                className="w-full p-4 bg-zinc-900 border border-zinc-700 rounded-xl"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm mb-1">Agent URI / Website</label>
-            <input
-              type="text"
-              value={uri}
-              onChange={(e) => setUri(e.target.value)}
-              placeholder="https://myagent.example.com"
-              className="w-full p-3 bg-zinc-900 border border-zinc-700 rounded-xl focus:outline-none focus:border-cyan-500"
-            />
+            <div>
+              <label>Agent URI (Website)</label>
+              <input 
+                type="text" 
+                value={agentUri}
+                onChange={(e) => setAgentUri(e.target.value)}
+                placeholder="https://myagent.com"
+                className="w-full p-4 bg-zinc-900 border border-zinc-700 rounded-xl"
+              />
+            </div>
           </div>
 
           <button
             onClick={handleSignIn}
             disabled={isLoading}
-            className="w-full py-4 px-6 rounded-2xl border border-cyan-500 hover:bg-cyan-500/10 transition-all text-lg font-medium disabled:opacity-50"
+            className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-700 rounded-2xl text-lg font-semibold"
           >
-            {isLoading ? "Signing In..." : "Sign In with Agent"}
+            {isLoading ? "Signing..." : "Sign In with Agent"}
           </button>
+
+          {status === "error" && <p className="text-red-500 text-center">{message}</p>}
         </>
-      ) : (
-        <div className="text-center space-y-3">
-          <div className="text-green-500 text-2xl">✅ Agent Authenticated</div>
-          <p className="text-zinc-400">Agent ID: #{agentId}</p>
-          <p className="text-zinc-400 text-sm break-all">URI: {uri}</p>
-          
-          <button 
-            onClick={() => setAuthenticated(false)}
-            className="text-cyan-400 hover:text-cyan-300 underline"
-          >
-            Sign In Again
-          </button>
-        </div>
       )}
     </div>
   );
