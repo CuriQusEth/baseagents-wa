@@ -7,7 +7,6 @@ import { signSIWAMessage } from "@buildersgarden/siwa/siwa";
 import { createWalletClientSigner } from "@/lib/siwa-wallet-signer";
 import { base } from "wagmi/chains";
 import { AGENT_REGISTRY_MAINNET, AGENT_REGISTRY_TESTNET } from "@/lib/wagmi";
-import { AgentInfo } from "@/components/AgentInfo";
 
 type Step = "idle" | "nonce" | "sign" | "verify" | "done" | "error";
 
@@ -174,9 +173,6 @@ export default function SIWAPage() {
                   );
                 })}
               </div>
-              {agentId && Number(agentId) > 0 && (
-                <AgentInfo agentId={Number(agentId)} />
-              )}
               {statusMsg && <div className="status-msg"><span className="sdot anim-pulse" />{statusMsg}</div>}
               <button className="btn-primary" onClick={handleSIWA} disabled={!agentId || step !== "idle"}>
                 {step !== "idle" ? "Authenticating..." : "Sign In With Agent"}
