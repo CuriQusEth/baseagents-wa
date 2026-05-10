@@ -1,9 +1,4 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import {
-  coinbaseWallet,
-  metaMaskWallet,
-  walletConnectWallet,
-} from "@rainbow-me/rainbowkit/wallets";
 import { base, baseSepolia } from "wagmi/chains";
 
 export const wagmiConfig = getDefaultConfig({
@@ -11,16 +6,6 @@ export const wagmiConfig = getDefaultConfig({
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "c5f59cfa3fe2f73752eaf98d9ba0dbe8",
   chains: [base, baseSepolia],
   ssr: true,
-  wallets: [
-    {
-      groupName: "Recommended",
-      wallets: [
-        coinbaseWallet({ appName: "SIWA Hub", preference: "smartWalletOnly" }),
-        metaMaskWallet,
-        walletConnectWallet,
-      ],
-    },
-  ],
 });
 
 export const AGENT_REGISTRY_MAINNET =

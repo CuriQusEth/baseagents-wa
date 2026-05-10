@@ -159,6 +159,7 @@ export default function SIWAPage() {
                 <label className="flabel">Registry</label>
                 <div className="fdisplay" style={{ fontSize: "0.68rem", color: "var(--text-dim)", wordBreak: "break-all", fontFamily: "var(--font-mono)" }}>{agentRegistry}</div>
               </div>
+              
               {agentId && Number(agentId) > 0 && (
                 <>
                   <AgentInfo agentId={Number(agentId)} />
