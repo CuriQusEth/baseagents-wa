@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       signerType: result.signerType,
       verified: true,
     }, {
-      secret: process.env.RECEIPT_SECRET!,
+      secret: process.env.RECEIPT_SECRET || "default_secret_please_change",
     });
 
     return Response.json({

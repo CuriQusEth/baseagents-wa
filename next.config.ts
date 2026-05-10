@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: "c5f59cfa3fe2f73752eaf98d9ba0dbe8",
     RECEIPT_SECRET: "CAydUlxPpLymtJYIerIGNnvtzKJmCWMmZavfyzi/qp8="
   },
-  webpack(config) {
+  webpack(config, { isServer }) {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@circle-fin/developer-controlled-wallets": path.resolve(
@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
       ),
       "@openfort/openfort-node": path.resolve(__dirname, "./lib/openfort-stub.js"),
     };
+    if (!isServer) {
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            fs: false,
+            net: false,
+            tls: false,
+        };
+    }
     return config;
   },
 };

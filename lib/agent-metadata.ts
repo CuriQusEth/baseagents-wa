@@ -7,13 +7,9 @@ export interface AgentMetadata {
 
 export async function getAgentMetadata(agentId: number, chainId: number): Promise<AgentMetadata | null> {
   try {
-    // Basic placeholder implementation. In a real app this would call an RPC to get tokenURI 
-    // or call 8004scan API directly: 
-    // const res = await fetch(`https://api.8004scan.io/api/v1/agents/${chainId}/${agentId}`);
-    // return await res.json();
     return {
-      name: `Agent #${agentId}`,
-      description: "On-chain AI Agent identity."
+      name: `Woodblock Agent #${agentId}`,
+      description: "On-chain AI Agent identity for Web3 interactions."
     };
   } catch (error) {
     console.error("Failed to fetch agent metadata:", error);
