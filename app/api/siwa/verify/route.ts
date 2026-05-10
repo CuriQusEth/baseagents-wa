@@ -31,4 +31,14 @@ export async function POST(req: Request) {
   }
 }
 
-export { siwaOptions as OPTIONS };
+// ✅ Next.js 15: OPTIONS bir fonksiyon olmalı
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": (siwaOptions as any)?.origin ?? "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
