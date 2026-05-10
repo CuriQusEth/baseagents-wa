@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
       ),
       "@openfort/openfort-node": path.resolve(__dirname, "./lib/openfort-stub.js"),
     };
+    
     if (!isServer) {
         config.resolve.fallback = {
             ...config.resolve.fallback,
@@ -22,11 +23,12 @@ const nextConfig: NextConfig = {
             net: false,
             tls: false,
             http2: false,
-            "stream": false,
-            "crypto": false,
+            stream: false,
+            crypto: false,
         };
         config.resolve.alias['@react-native-async-storage/async-storage'] = false;
     }
+    
     return config;
   },
 };
