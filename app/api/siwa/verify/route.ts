@@ -16,29 +16,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Message and signature required" }, { status: 400 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await verifySIWA(
       message,
       signature,
-      message.domain || "localhost", // domain kontrolü
-      (nonce: string) => true,       // nonce validation (basit)
+      message.domain || new URL(request.url).hostname,
+      () => true,                    // Basit nonce kontrolü (sonra geliştirebiliriz)
       publicClient as any
     );
 
-    if (result.success && result.address) {
+    if (result.success || (result as any).valid) {
       return NextResponse.json({ 
-        receipt: result.receipt || "receipt-generated",
-        success: true 
+        receipt: result.receipt || "siwa-receipt-" + Date.now(),
+        success: true,
+        agentId: result.agentId
       });
     } else {
-      return NextResponse.json({ 
-        error: result.error || "Verification failed" 
-      }, { status: 401 });
+      return NextResponse.json({ error: result.error || "Verification failed" }, { status: 401 });
     }
   } catch (error: any) {
     console.error(error);
-    return NextResponse.json({ 
-      error: error.message || "Verification failed" 
-    }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Server error" }, { status: 500 });
   }
 }
