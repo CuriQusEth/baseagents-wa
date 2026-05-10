@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { signSIWAMessage } from "@buildersgarden/siwa";
 import { createWalletClientSigner } from "@buildersgarden/siwa/signer";
 import { useAccount, useWalletClient } from 'wagmi';
+import { setSiwaData, sendAgentRequest } from '@/lib/siwa';
 
 export default function DynamicSiwaButton() {
   const [isLoading, setIsLoading] = useState(false);
@@ -56,9 +57,10 @@ export default function DynamicSiwaButton() {
 
       const data = await verifyRes.json();
 
-      if (data.success) {
+      if (data.success && data.receipt) {
+        setSiwaData(data.receipt, signer);
         setSuccess(true);
-        console.log("✅ Receipt:", data.receipt);
+        console.log("✅ Receipt ve Signer kaydedildi");
       } else {
         throw new Error(data.error || "Verification failed");
       }
@@ -75,13 +77,28 @@ export default function DynamicSiwaButton() {
       <div className="text-center p-10 bg-green-950 border border-green-500 rounded-3xl">
         <div className="text-5xl mb-4">✅</div>
         <h2 className="text-2xl text-green-400 mb-2">Agent Authenticated</h2>
-        <p className="text-zinc-400">Agent ID: #{agentId}</p>
-        <button 
-          onClick={() => setSuccess(false)}
-          className="mt-6 text-cyan-400 underline"
-        >
-          Tekrar Dene
-        </button>
+        <p className="text-zinc-400 mb-6">Agent ID: #{agentId}</p>
+        
+        <div className="flex flex-col gap-4">
+          <button 
+            onClick={() => {
+              // Örnek istek
+              sendAgentRequest("https://api.example.com/protected", { action: "test" })
+                .then(data => alert(`Response: ${JSON.stringify(data)}`))
+                .catch(err => alert(`Error: ${err.message}`));
+            }}
+            className="bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"
+          >
+            Test Authenticated Request Gönder
+          </button>
+
+          <button 
+            onClick={() => setSuccess(false)}
+            className="text-cyan-400 underline mt-2"
+          >
+            Tekrar Dene
+          </button>
+        </div>
       </div>
     );
   }
