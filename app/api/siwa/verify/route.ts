@@ -12,31 +12,33 @@ export async function POST(req: Request) {
   try {
     const { message, signature } = await req.json();
 
-    // Verify SIWA message
     const result = await verifySIWA(
       message,
       signature,
-      "myagent.example.com", // This should dynamically map to domain
-      async (nonce) => true, // In production, validate from nonceStore
+      "myagent.example.com",
+      async (nonce) => true,
       client
     );
 
     return corsJson({
       success: true,
       receipt: result.receipt,
-      agentId: result.agent?.id
+      agentId: result.agent?.id,
     });
   } catch (error: any) {
-    return corsJson({ success: false, error: error.message || "Verification failed" }, { status: 400 });
+    return corsJson(
+      { success: false, error: error.message || "Verification failed" },
+      { status: 400 }
+    );
   }
 }
 
-// ✅ Next.js 15: OPTIONS bir fonksiyon olmalı
+// ✅ Next.js 15 uyumlu OPTIONS
 export async function OPTIONS(request: Request) {
   return new Response(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": (siwaOptions as any)?.origin ?? "*",
+      "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     },
