@@ -7,6 +7,8 @@ import { getAgentMetadata, type AgentMetadata } from '@/lib/agent-metadata';
 import { createWalletClient, custom } from 'viem';
 import { getAgentTools, getToolConfig, checkToolAccess, fetchToolMetadata, type ToolConfig } from '@/lib/erc8257';
 
+import { createWalletClientSigner } from "@buildersgarden/siwa/signer";
+
 export default function DynamicSiwaButton() {
   const { address, connector } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -80,12 +82,8 @@ export default function DynamicSiwaButton() {
       let finalMessage = "";
 
       // 2. SIWA Mesajı Oluştur
-      // Eğer import edilen siwa'da doğrudan object döndürülüyorsa:
       try {
-          const fakeSigner = {
-              signMessage: async ({ message }: any) => { return ""; },
-              getAddress: async () => address,
-          };
+          const signer = createWalletClientSigner(walletClient as any);
           
           const res = await signSIWAMessage({
             domain,
@@ -96,7 +94,7 @@ export default function DynamicSiwaButton() {
             nonce,
             issuedAt,
             statement: "Sign in with my on-chain Agent to SIWA Hub",
-          }, fakeSigner as any);
+          }, signer);
           
           finalMessage = res.message;
       } catch (err) {

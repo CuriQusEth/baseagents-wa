@@ -21,8 +21,10 @@ const nextConfig: NextConfig = {
             fs: false,
             net: false,
             tls: false,
+            http2: false,
+            "stream": false,
+            "crypto": false,
         };
-        // @react-native-async-storage/async-storage can be ignored this way
         config.resolve.alias['@react-native-async-storage/async-storage'] = false;
     }
     return config;
