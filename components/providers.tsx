@@ -7,13 +7,13 @@ import {
 } from '@rainbow-me/rainbowkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
-import { base } from 'wagmi/chains';
+import { base, baseSepolia } from 'wagmi/chains';
 import '@rainbow-me/rainbowkit/styles.css';
 
 const config = getDefaultConfig({
   appName: 'SIWA Agent App',
-  projectId: 'YOUR_PROJECT_ID', // Replaces with WalletConnect Project ID
-  chains: [base],
+  projectId: 'YOUR_PROJECT_ID', // Replace with WalletConnect Project ID
+  chains: [base, baseSepolia],
   ssr: true,
 });
 

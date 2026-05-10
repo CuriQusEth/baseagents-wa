@@ -1,20 +1,36 @@
-// app/api/siwa/nonce/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { createSIWANonce } from "@buildersgarden/siwa";
+import { corsJson, siwaOptions } from "@buildersgarden/siwa/next";
+import { createPublicClient, http } from "viem";
+import { baseSepolia } from "viem/chains";
 
-export async function POST(request: NextRequest) {
+const client = createPublicClient({
+  chain: baseSepolia,
+  transport: http(process.env.RPC_URL || "https://sepolia.base.org"),
+});
+
+// Simple in-memory nonce store (use Redis in production)
+const nonceStore = new Map<string, number>();
+
+export async function POST(req: Request) {
   try {
-    const { address } = await request.json();
+    const { address, agentId, agentRegistry } = await req.json();
 
-    if (!address) {
-      return NextResponse.json({ error: "Address required" }, { status: 400 });
-    }
+    const result = await createSIWANonce(
+      { address, agentId, agentRegistry },
+      client,
+    );
 
-    const nonce = `siwa_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const issuedAt = new Date().toISOString();
+    // Store nonce for verification
+    nonceStore.set(result.nonce, Date.now());
 
-    return NextResponse.json({ nonce, issuedAt });
-  } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return corsJson({
+      nonce: result.nonce,
+      issuedAt: result.issuedAt,
+      expirationTime: result.expirationTime,
+    });
+  } catch (error: any) {
+    return corsJson({ error: error.message || "Failed to create nonce" }, { status: 500 });
   }
 }
 
+export { siwaOptions as OPTIONS };

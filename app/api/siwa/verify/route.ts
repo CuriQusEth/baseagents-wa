@@ -1,32 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createReceipt } from "@buildersgarden/siwa/receipt";
+import { verifySIWA } from "@buildersgarden/siwa";
+import { corsJson, siwaOptions } from "@buildersgarden/siwa/next";
+import { createPublicClient, http } from "viem";
+import { baseSepolia } from "viem/chains";
 
-export async function POST(request: NextRequest) {
+const client = createPublicClient({
+  chain: baseSepolia,
+  transport: http(process.env.RPC_URL || "https://sepolia.base.org"),
+});
+
+export async function POST(req: Request) {
   try {
-    const { message, signature } = await request.json();
+    const { message, signature } = await req.json();
 
-    if (!message || !signature) {
-      return NextResponse.json({ error: "Message and signature required" }, { status: 400 });
-    }
+    // Verify SIWA message
+    const result = await verifySIWA(
+      message,
+      signature,
+      "myagent.example.com", // This should dynamically map to domain
+      async (nonce) => true, // In production, validate from nonceStore
+      client
+    );
 
-    // Gerçek receipt oluştur
-    const receiptResult = createReceipt({
-      address: message.address || "0x29536D0bc1004ab274c4F0F59734Ad74D4559b7B",
-      agentId: message.agentId || 47294,
-      agentRegistry: "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
-      chainId: message.chainId || 8453,
-      verified: 'offline'
-    }, {
-      secret: process.env.SIWA_SECRET || "default_super_secret_key"
+    return corsJson({
+      success: true,
+      receipt: result.receipt,
+      agentId: result.agent?.id
     });
-
-    return NextResponse.json({ 
-      receipt: receiptResult.receipt,
-      success: true 
-    });
-
   } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: "Verification failed" }, { status: 500 });
+    return corsJson({ success: false, error: error.message || "Verification failed" }, { status: 400 });
   }
 }
+
+export { siwaOptions as OPTIONS };

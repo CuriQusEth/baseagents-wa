@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { signSIWAMessage } from "@buildersgarden/siwa";
 import { createWalletClientSigner } from "@buildersgarden/siwa/signer";
 import { useAccount, useWalletClient } from 'wagmi';
-import { saveSiwaSession, sendAgentRequest } from '../lib/siwa';
 
 export default function DynamicSiwaButton() {
   const [isLoading, setIsLoading] = useState(false);
@@ -32,14 +31,14 @@ export default function DynamicSiwaButton() {
       const nonceRes = await fetch("/api/siwa/nonce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address, agentId, agentRegistry: "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" }),
       });
 
       const { nonce, issuedAt } = await nonceRes.json();
 
       const signer = createWalletClientSigner(walletClient);
 
-      const { message: siwaMsg, signature } = await signSIWAMessage({
+      const { message: siwaMessage, signature } = await signSIWAMessage({
         domain,
         uri: agentUri,
         agentId,
@@ -52,20 +51,16 @@ export default function DynamicSiwaButton() {
       const verifyRes = await fetch("/api/siwa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          message: siwaMsg, 
-          signature 
-        }),
+        body: JSON.stringify({ message: siwaMessage, signature }),
       });
 
       const data = await verifyRes.json();
 
       if (data.success && data.receipt) {
-        saveSiwaSession(data.receipt, signer);   // ← receipt kaydediliyor
         setSuccess(true);
-        console.log("✅ Gerçek Receipt alındı:", data.receipt);
+        console.log("✅ Success - Receipt:", data.receipt);
       } else {
-        throw new Error(data.error || "Verification failed");
+        throw new Error(data.error || "Doğrulama başarısız");
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed");
@@ -76,73 +71,33 @@ export default function DynamicSiwaButton() {
   };
 
   if (success) {
-    return (
-      <div className="text-center p-10 bg-green-950 border border-green-500 rounded-3xl">
-        <div className="text-5xl mb-4">✅</div>
-        <h2 className="text-2xl text-green-400 mb-2">Agent Authenticated</h2>
-        <p className="text-zinc-400 mb-6">Agent ID: #{agentId}</p>
-        
-        <div className="flex flex-col gap-4">
-          <button 
-            onClick={async () => {
-              try {
-                const result = await sendAgentRequest("https://httpbin.org/post", {
-                  test: "Base Agent SIWA Test",
-                  agentId: 47294
-                });
-                alert("İstek Başarılı! ✅");
-                console.log(result);
-              } catch (e: any) {
-                alert("Hata: " + e.message);
-              }
-            }}
-            className="bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"
-          >
-            Test Authenticated Request Gönder
-          </button>
-
-          <button 
-            onClick={() => setSuccess(false)}
-            className="text-cyan-400 underline mt-2"
-          >
-            Tekrar Dene
-          </button>
-        </div>
-      </div>
-    );
+    return <div className="text-green-500 text-2xl text-center">✅ Agent Authenticated</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <label className="block text-sm mb-2">Agent ID</label>
-        <input
-          type="number"
-          value={agentId}
-          onChange={(e) => setAgentId(Number(e.target.value))}
-          className="w-full p-4 bg-zinc-900 border border-zinc-700 rounded-2xl focus:border-cyan-500 outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm mb-2">Agent URI (Website)</label>
-        <input
-          type="text"
-          value={agentUri}
-          onChange={(e) => setAgentUri(e.target.value)}
-          className="w-full p-4 bg-zinc-900 border border-zinc-700 rounded-2xl focus:border-cyan-500 outline-none"
-        />
-      </div>
-
+    <div className="space-y-6 p-6">
+      <input
+        type="number"
+        value={agentId}
+        onChange={(e) => setAgentId(Number(e.target.value))}
+        className="w-full p-4 bg-zinc-900 rounded-xl text-black"
+        placeholder="Agent ID"
+      />
+      <input
+        type="text"
+        value={agentUri}
+        onChange={(e) => setAgentUri(e.target.value)}
+        className="w-full p-4 bg-zinc-900 rounded-xl text-black"
+        placeholder="https://myagent.com"
+      />
       <button
         onClick={handleSignIn}
         disabled={isLoading}
-        className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-700 rounded-2xl text-lg font-semibold transition"
+        className="w-full py-4 bg-blue-600 rounded-xl font-semibold"
       >
-        {isLoading ? "Signing In..." : "Sign In with Agent"}
+        {isLoading ? "Signing..." : "Sign In with Agent"}
       </button>
-
-      {error && <p className="text-red-500 text-center">{error}</p>}
+      {error && <p className="text-red-500">{error}</p>}
     </div>
   );
 }
