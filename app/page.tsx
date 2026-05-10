@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import SiwaSignButton from "@/components/SiwaSignButton";
+import { AgentInfo } from "@/components/AgentInfo";
 import { signSIWAMessage } from "@buildersgarden/siwa/siwa";
 import { createWalletClientSigner } from "@/lib/siwa-wallet-signer";
 import { base } from "wagmi/chains";
@@ -157,26 +159,15 @@ export default function SIWAPage() {
                 <label className="flabel">Registry</label>
                 <div className="fdisplay" style={{ fontSize: "0.68rem", color: "var(--text-dim)", wordBreak: "break-all", fontFamily: "var(--font-mono)" }}>{agentRegistry}</div>
               </div>
-              <div className="flow-steps">
-                {(["nonce","sign","verify"] as const).map((s, i) => {
-                  const labels = ["Request Nonce","Sign Message","Verify On-chain"];
-                  const isActive = step === s;
-                  const isDone = (s==="nonce"&&["sign","verify","done"].includes(step))||(s==="sign"&&["verify","done"].includes(step))||(s==="verify"&&step==="done");
-                  return (
-                    <div key={s} className={`fstep${isActive?" active":""}${isDone?" done":""}`}>
-                      <div className="fstep-num">
-                        {isDone ? <svg viewBox="0 0 16 16" fill="none"><path d="M3 8L6.5 11.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                          : isActive ? <span className="fspinner" /> : i+1}
-                      </div>
-                      <span>{labels[i]}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              {statusMsg && <div className="status-msg"><span className="sdot anim-pulse" />{statusMsg}</div>}
-              <button className="btn-primary" onClick={handleSIWA} disabled={!agentId || step !== "idle"}>
-                {step !== "idle" ? "Authenticating..." : "Sign In With Agent"}
-              </button>
+              {agentId && Number(agentId) > 0 && (
+                <>
+                  <AgentInfo agentId={Number(agentId)} />
+                  <SiwaSignButton agentId={Number(agentId)} onSuccess={(receiptObj) => {
+                    setResult(receiptObj);
+                    setStep("done");
+                  }} />
+                </>
+              )}
             </div>
           )}
         </div>
