@@ -1,15 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import dynamic from 'next/dynamic';
 import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { signSIWAMessage } from "@buildersgarden/siwa/siwa";
+import { createWalletClientSigner } from "@/lib/siwa-wallet-signer";
 import { base } from "wagmi/chains";
-
-const DynamicSiwaButton = dynamic(
-  () => import('@/components/DynamicSiwaButton'),
-  { ssr: false }
-);
+import { AGENT_REGISTRY_MAINNET, AGENT_REGISTRY_TESTNET } from "@/lib/wagmi";
 
 type Step = "idle" | "nonce" | "sign" | "verify" | "done" | "error";
 
@@ -21,9 +18,54 @@ interface AuthResult {
 }
 
 export default function SIWAPage() {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const { data: walletClient } = useWalletClient();
+  const [agentId, setAgentId] = useState("");
+  const [step, setStep] = useState<Step>("idle");
+  const [statusMsg, setStatusMsg] = useState("");
+  const [result, setResult] = useState<AuthResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
   const isMainnet = chainId === base.id;
+  const agentRegistry = isMainnet ? AGENT_REGISTRY_MAINNET : AGENT_REGISTRY_TESTNET;
+
+  const handleSIWA = useCallback(async () => {
+    if (!address || !walletClient || !agentId) return;
+    setStep("nonce"); setStatusMsg("Requesting nonce from server..."); setResult(null); setErrorMsg("");
+    try {
+      const nonceRes = await fetch("/api/siwa/nonce", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, agentId: Number(agentId), agentRegistry, chainId }),
+      });
+      if (!nonceRes.ok) { const e = await nonceRes.json(); throw new Error(e.error || "Failed to get nonce"); }
+      const { nonce, issuedAt } = await nonceRes.json();
+
+      setStep("sign"); setStatusMsg("Signing SIWA message in your wallet...");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const signer = createWalletClientSigner(walletClient as any);
+      const { message, signature } = await signSIWAMessage({
+        domain: window.location.host,
+        uri: `${window.location.origin}/api/siwa/verify`,
+        agentId: Number(agentId), agentRegistry, chainId, nonce, issuedAt,
+        statement: "Sign in with my on-chain Agent to SIWA Hub",
+      }, signer);
+
+      setStep("verify"); setStatusMsg("Verifying signature on-chain...");
+      const verifyRes = await fetch("/api/siwa/verify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, signature, chainId }),
+      });
+      if (!verifyRes.ok) { const e = await verifyRes.json(); throw new Error(e.error || "Verification failed"); }
+      const authResult: AuthResult = await verifyRes.json();
+      setResult(authResult); setStep("done"); setStatusMsg("Authentication successful!");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Unknown error");
+      setStep("error"); setStatusMsg("");
+    }
+  }, [address, walletClient, agentId, agentRegistry, chainId]);
+
+  const reset = () => { setStep("idle"); setResult(null); setErrorMsg(""); setStatusMsg(""); };
 
   return (
     <main style={{ minHeight: "100vh", position: "relative", zIndex: 1, display: "flex", flexDirection: "column" }}>
@@ -70,8 +112,72 @@ export default function SIWAPage() {
               <p className="state-desc">Connect a wallet holding an ERC-8004 Agent NFT</p>
               <ConnectButton label="Connect Wallet" />
             </div>
+          ) : step === "done" && result ? (
+            <div className="center-state">
+              <div className="state-icon" style={{ color: "var(--green)" }}>
+                <svg viewBox="0 0 64 64" fill="none"><path d="M32 8L56 20V44L32 56L8 44V20L32 8Z" stroke="currentColor" strokeWidth="1.5" /><path d="M20 32L28 40L44 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--green)" }}>Agent Authenticated</h2>
+              <div className="result-grid">
+                <div className="result-item"><span className="rl">Agent ID</span><span className="rv">#{result.agent.agentId}</span></div>
+                <div className="result-item"><span className="rl">Signer Type</span><span className="rv">{(result.agent.signerType ?? "EOA").toUpperCase()}</span></div>
+                <div className="result-item full"><span className="rl">Address</span><span className="rv" style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>{result.agent.address.slice(0,10)}...{result.agent.address.slice(-8)}</span></div>
+                <div className="result-item full"><span className="rl">Expires</span><span className="rv">{new Date(result.expiresAt).toLocaleString()}</span></div>
+              </div>
+              <div className="receipt-block">
+                <div className="receipt-hdr"><span>ERC-8128 Receipt Token</span><button className="copy-btn" onClick={() => navigator.clipboard.writeText(result.receipt)}>Copy</button></div>
+                <div className="receipt-val">{result.receipt}</div>
+              </div>
+              <button className="btn-secondary" onClick={reset}>Sign In Again</button>
+            </div>
+          ) : step === "error" ? (
+            <div className="center-state">
+              <div className="state-icon" style={{ color: "#ff4d4d" }}>
+                <svg viewBox="0 0 64 64" fill="none"><path d="M32 8L56 20V44L32 56L8 44V20L32 8Z" stroke="currentColor" strokeWidth="1.5" /><path d="M24 24L40 40M40 24L24 40" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" /></svg>
+              </div>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#ff4d4d" }}>Authentication Failed</h2>
+              <p className="state-desc" style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>{errorMsg}</p>
+              <button className="btn-primary" onClick={reset}>Try Again</button>
+            </div>
           ) : (
-            <DynamicSiwaButton />
+            <div className="input-state">
+              <div className="card-hdr"><div className="card-hdr-dot" /><span>SIWA Authentication</span></div>
+              <div className="fgroup">
+                <label className="flabel">Wallet Address</label>
+                <div className="fdisplay"><div className="addr-dot" /><span style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>{address?.slice(0,8)}...{address?.slice(-6)}</span></div>
+              </div>
+              <div className="fgroup">
+                <label className="flabel">
+                  <span>Agent Token ID</span>
+                  <a href="https://8004scan.io" target="_blank" rel="noopener noreferrer" className="flabel-link">Find on 8004scan.io ↗</a>
+                </label>
+                <input type="number" className="finput" placeholder="e.g. 42" value={agentId} onChange={e => setAgentId(e.target.value)} min="0" disabled={step !== "idle"} />
+              </div>
+              <div className="fgroup">
+                <label className="flabel">Registry</label>
+                <div className="fdisplay" style={{ fontSize: "0.68rem", color: "var(--text-dim)", wordBreak: "break-all", fontFamily: "var(--font-mono)" }}>{agentRegistry}</div>
+              </div>
+              <div className="flow-steps">
+                {(["nonce","sign","verify"] as const).map((s, i) => {
+                  const labels = ["Request Nonce","Sign Message","Verify On-chain"];
+                  const isActive = step === s;
+                  const isDone = (s==="nonce"&&["sign","verify","done"].includes(step))||(s==="sign"&&["verify","done"].includes(step))||(s==="verify"&&step==="done");
+                  return (
+                    <div key={s} className={`fstep${isActive?" active":""}${isDone?" done":""}`}>
+                      <div className="fstep-num">
+                        {isDone ? <svg viewBox="0 0 16 16" fill="none"><path d="M3 8L6.5 11.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                          : isActive ? <span className="fspinner" /> : i+1}
+                      </div>
+                      <span>{labels[i]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {statusMsg && <div className="status-msg"><span className="sdot anim-pulse" />{statusMsg}</div>}
+              <button className="btn-primary" onClick={handleSIWA} disabled={!agentId || step !== "idle"}>
+                {step !== "idle" ? "Authenticating..." : "Sign In With Agent"}
+              </button>
+            </div>
           )}
         </div>
 
