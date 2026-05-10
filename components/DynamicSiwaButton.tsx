@@ -80,14 +80,14 @@ export default function DynamicSiwaButton() {
         type="number"
         value={agentId}
         onChange={(e) => setAgentId(Number(e.target.value))}
-        className="w-full p-4 bg-zinc-900 rounded-xl text-black"
+        className="w-full p-4 bg-zinc-900 rounded-xl text-white"
         placeholder="Agent ID"
       />
       <input
         type="text"
         value={agentUri}
         onChange={(e) => setAgentUri(e.target.value)}
-        className="w-full p-4 bg-zinc-900 rounded-xl text-black"
+        className="w-full p-4 bg-zinc-900 rounded-xl text-white"
         placeholder="https://myagent.com"
       />
       <button
