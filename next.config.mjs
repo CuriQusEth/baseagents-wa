@@ -3,8 +3,15 @@ const nextConfig = {
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@react-native-async-storage/async-storage': false,
-      'pino-pretty': false,
+      "@react-native-async-storage/async-storage": false,
+      "pino-pretty": false,
+    };
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+      crypto: false,
     };
     return config;
   },
